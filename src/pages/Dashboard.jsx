@@ -16,39 +16,75 @@ export default function Dashboard() {
   const [selectedDistrict, setSelectedDistrict] = useState(null);
 
   const [showSelector, setShowSelector] = useState(false);
+  const [avance, setAvance] = useState(null);
 
   useEffect(() => {
     loadDistricts();
   }, []);
 
-  async function loadDistricts() {
-    const { data, error } = await supabase.rpc("estadistica_distritos");
-    if (!error) {
-      setData(data);
-      setDistricts(data);
-      setSelectedDistrict(null);
+  async function loadAvance(distritoId = null) {
+    const { data, error } = await supabase.rpc("avance_computo", {
+      distrito_id_param: distritoId,
+      recinto_id_param: null,
+    });
+
+    if (!error && data?.length > 0) {
+      setAvance(data[0]);
     }
   }
 
-  async function loadRecintos(districtId) {
-    const { data, error } = await supabase.rpc("estadistica_recintos", {
-      distrito_id: parseInt(districtId),
-    });
+  async function loadDistricts() {
+    const { data, error } = await supabase.from("distritos").select("*");
+    if (!error) {
+      setDistricts(data);
+      loadResultadosTotal(); // 🔥 carga total al iniciar
+    }
+  }
+
+  async function loadResultadosTotal() {
+    const { data, error } = await supabase.rpc("estadistica_partidos_total");
+
+    if (!error) {
+      setData(data);
+      setSelectedDistrict(null);
+      loadAvance(null); // 🔥 GENERAL
+    }
+  }
+
+  async function loadResultadosDistrito(districtId) {
+    const { data, error } = await supabase.rpc(
+      "estadistica_partidos_distrito",
+      { distrito_id_param: parseInt(districtId) },
+    );
+    console.log(data);
     if (!error) {
       setData(data);
       setSelectedDistrict(districtId);
+      loadAvance(parseInt(districtId));
+    } else {
+      console.error(error);
     }
   }
 
+  // async function loadRecintos(districtId) {
+  //   const { data, error } = await supabase.rpc("estadistica_recintos", {
+  //     distrito_id: parseInt(districtId),
+  //   });
+  //   if (!error) {
+  //     setData(data);
+  //     setSelectedDistrict(districtId);
+  //   }
+  // }
+
   const formattedData = data.map((item) => ({
-    ...item,
+    partido_id: item.partido_id,
+    codigo: item.codigo,
     porcentaje: Number(item.porcentaje),
-    total_habilitados: Number(item.total_habilitados),
-    nombre_corto: String(item.nombre).replace("DISTRITO ", "D"),
+    total_votos: Number(item.total_votos),
   }));
 
   const totalGeneral = formattedData.reduce(
-    (acc, item) => acc + Number(item.total_habilitados || 0),
+    (acc, item) => acc + item.total_votos,
     0,
   );
 
@@ -56,77 +92,113 @@ export default function Dashboard() {
     (d) => d.id === Number(selectedDistrict),
   );
 
-  const totalDistrito = distritoActual?.total_habilitados || 0;
+  const totalDistrito = formattedData.reduce(
+    (acc, item) => acc + item.total_votos,
+    0,
+  );
 
   return (
     <div className="p-4 space-y-6">
       <div className="bg-[#252525] p-6 rounded-3xl shadow-2xl border border-[#1f2937]">
-        <div className="relative flex items-center justify-between">
-          <h2 className="font-bold text-xl text-white tracking-wide uppercase">
-            {selectedDistrict
-              ? `Distribución ${distritoActual?.nombre || ""}`
-              : "Distribución por Distrito"}
-          </h2>
+        <div className="mb-4 space-y-2 relative">
+          {/* FILA 1 */}
 
-          {/* Botón flecha */}
-          <button
-            onClick={() => setShowSelector(!showSelector)}
-            className="text-[#facc15] text-xl transition-transform duration-300 hover:scale-110"
-          >
-            <span
-              className={`${showSelector ? "rotate-180" : ""} inline-block transition-transform duration-300`}
-            >
-              ▼
-            </span>
-          </button>
+          {/* FILA 1 */}
+          <div className="flex justify-between items-center">
+            <h2 className="font-bold text-xl text-white tracking-wide uppercase">
+              {selectedDistrict
+                ? `Resultados ${distritoActual?.nombre || ""}`
+                : "TOTAL CONTEO RAPIDO"}
+            </h2>
+          </div>
 
-          {/* Dropdown */}
-          {showSelector && (
-            <div className="absolute top-12 right-0 w-72 bg-[#111827] border border-[#1f2937] rounded-2xl shadow-2xl p-4 z-50 animate-fadeIn">
-              {!selectedDistrict ? (
-                <select
-                  onChange={(e) => {
-                    loadRecintos(e.target.value);
-                    setShowSelector(false);
-                  }}
-                  className="w-full p-3 rounded-xl bg-black text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-[#facc15]"
+          {/* <div className="flex justify-between items-center">
+            <h2 className="font-bold text-xl text-white tracking-wide uppercase">
+              {selectedDistrict
+                ? `Resultados ${distritoActual?.nombre || ""}`
+                : "TOTAL CONTEO RAPIDO"}
+            </h2>
+
+            <div className="text-sm text-gray-300">Por distrito</div>
+          </div> */}
+
+          {/* FILA 2 */}
+          <div className="flex justify-between items-center">
+            {/* ACTAS */}
+            {avance && (
+              <div className="text-left">
+                <div className="text-xs uppercase tracking-widest text-gray-400">
+                  Actas Computadas
+                </div>
+                <div className="text-sm font-semibold text-white">
+                  {avance.mesas_computadas.toLocaleString()} /{" "}
+                  {avance.total_mesas.toLocaleString()} (
+                  {Number(avance.porcentaje).toFixed(2)}%)
+                </div>
+              </div>
+            )}
+
+            {/* BOTÓN SELECTOR */}
+            <div className="flex flex-col items-center">
+              <div className="text-xs text-gray-400 mb-1">Por distrito</div>
+
+              <button
+                onClick={() => setShowSelector(!showSelector)}
+                className="text-[#facc15] text-xl transition-transform duration-300 hover:scale-110"
+              >
+                <span
+                  className={`${showSelector ? "rotate-180" : ""} inline-block transition-transform duration-300`}
                 >
-                  <option value="">Seleccionar Distrito...</option>
-                  {districts.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.nombre}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <button
-                  onClick={() => {
-                    loadDistricts();
-                    setShowSelector(false);
-                  }}
-                  className="w-full p-3 bg-[#facc15] text-black font-semibold rounded-xl hover:opacity-90 transition"
-                >
-                  ← Volver a Distritos
-                </button>
-              )}
+                  ▼
+                </span>
+              </button>
             </div>
-          )}
-        </div>
 
-        {/* <h2 className="font-bold text-xl text-white tracking-wide uppercase">
-          {selectedDistrict
-            ? `DISTRIBUCION  ${distritoActual?.nombre || ""}`
-            : "DISTRIBUCION POR DISTRITO"}
-        </h2> */}
+            {/* Dropdown */}
+            {showSelector && (
+              <div className="absolute top-full -mt-2 right-0 w-72 bg-[#111827] border border-[#1f2937] rounded-2xl shadow-2xl p-4 z-50 animate-fadeIn">
+                {!selectedDistrict ? (
+                  <select
+                    onChange={(e) => {
+                      loadResultadosDistrito(e.target.value);
+                      setShowSelector(false);
+                    }}
+                    className="w-full p-3 rounded-xl bg-black text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-[#facc15]"
+                  >
+                    <option value="">Seleccionar Distrito...</option>
+                    {districts.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.nombre}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <button
+                    onClick={() => {
+                      loadDistricts();
+                      setShowSelector(false);
+                    }}
+                    className="w-full p-3 bg-[#facc15] text-black font-semibold rounded-xl hover:opacity-90 transition"
+                  >
+                    ← Volver a Distritos
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
 
-        <div className="text-center">
-          <span className="text-xs uppercase tracking-widest text-gray-400">
-            {selectedDistrict ? "Total Distrito" : "Total General"}
-          </span>
-          <div className="text-4xl font-extrabold text-[#facc15] mt-1">
-            {selectedDistrict
-              ? totalDistrito.toLocaleString()
-              : totalGeneral.toLocaleString()}
+          {/* FILA 3 */}
+          <div className="text-sm text-gray-300">
+            <span className="uppercase tracking-widest text-gray-400">
+              {selectedDistrict
+                ? "Votos Emitidos Distrito"
+                : "Total Votos Emitidos"}
+            </span>
+            <span className="ml-2 font-bold text-[#facc15] text-lg">
+              {selectedDistrict
+                ? totalDistrito.toLocaleString()
+                : totalGeneral.toLocaleString()}
+            </span>
           </div>
         </div>
 
@@ -151,11 +223,11 @@ export default function Dashboard() {
             />
             {!selectedDistrict ? (
               // 🔹 Vista Distritos
-              <YAxis dataKey="nombre_corto" type="category" width={60} />
+              <YAxis dataKey="codigo" type="category" width={60} />
             ) : (
               // 🔹 Vista Recintos
               <YAxis
-                dataKey="nombre_corto"
+                dataKey="codigo"
                 type="category"
                 width={140}
                 tick={(props) => {
@@ -173,7 +245,6 @@ export default function Dashboard() {
                         y={0}
                         dy={4}
                         textAnchor="end"
-                        //fill="#444"
                         fill="#eab308"
                         fontSize="12"
                       >
@@ -199,8 +270,6 @@ export default function Dashboard() {
 
             <Bar
               dataKey="porcentaje"
-              //fill="#2563eb"
-              //fill="#facc15"
               fill="#eab308"
               radius={[0, 8, 8, 0]}
               barSize={30}
@@ -210,7 +279,7 @@ export default function Dashboard() {
                 const row = formattedData[index];
                 if (!row) return null;
 
-                const text = `${value.toFixed(2)}% (${row.total_habilitados.toLocaleString()})`;
+                const text = `${value.toFixed(2)}% (${row.total_votos.toLocaleString()})`;
 
                 // estimación aproximada: 7px por caracter
                 const estimatedTextWidth = text.length * 7;
@@ -236,29 +305,6 @@ export default function Dashboard() {
           </BarChart>
         </ResponsiveContainer>
       </div>
-
-      {/* <div className="space-y-3">
-        {!selectedDistrict ? (
-          <select
-            onChange={(e) => loadRecintos(e.target.value)}
-            className="w-full p-3 rounded-2xl bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#facc15]"
-          >
-            <option value="">Ver recintos por distrito...</option>
-            {districts.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.nombre}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <button
-            onClick={loadDistricts}
-            className="w-full p-3 bg-[#facc15] text-black font-semibold rounded-2xl hover:opacity-90 transition"
-          >
-            ← Volver a distritos
-          </button>
-        )}
-      </div> */}
     </div>
   );
 }

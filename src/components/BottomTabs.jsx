@@ -1,11 +1,9 @@
-import { NavLink } from "react-router-dom"
+import { NavLink } from "react-router-dom";
 
 export default function BottomTabs() {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-[#0f0f0f] border-t border-[#1f2937] shadow-2xl">
-
       <div className="relative flex justify-around items-center h-16">
-
         <NavLink
           to="/"
           className={({ isActive }) =>
@@ -13,8 +11,8 @@ export default function BottomTabs() {
              ${isActive ? "text-[#facc15]" : "text-gray-400"}`
           }
         >
-          <span className="text-xl">🏠</span>
-          Inicio
+          <span className="text-xl">📊</span>
+          Resultados
         </NavLink>
 
         {/* Botón central destacado */}
@@ -36,11 +34,10 @@ export default function BottomTabs() {
              ${isActive ? "text-[#facc15]" : "text-gray-400"}`
           }
         >
-          <span className="text-xl">📊</span>
-          Distritos
+          <span className="text-xl">🏠</span>
+          Padron
         </NavLink>
-
       </div>
     </div>
-  )
+  );
 }
