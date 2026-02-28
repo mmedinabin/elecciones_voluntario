@@ -97,6 +97,17 @@ export default function Dashboard() {
     0,
   );
 
+  const adjustedLengths = formattedData.map((item) => {
+    if (item.codigo === "PATRIA-UNIDOS") {
+      return 7; // longitud máxima real de cada línea
+    }
+    return item.codigo.length;
+  });
+
+  const maxLabelLength = Math.max(...adjustedLengths);
+
+  const yAxisWidth = Math.min(160, Math.max(60, maxLabelLength * 8));
+
   return (
     <div className="p-4 space-y-6">
       <div className="bg-[#252525] p-6 rounded-3xl shadow-2xl border border-[#1f2937]">
@@ -223,8 +234,47 @@ export default function Dashboard() {
             />
             {!selectedDistrict ? (
               // 🔹 Vista Distritos
-              <YAxis dataKey="codigo" type="category" width={60} />
+              <YAxis
+                dataKey="codigo"
+                type="category"
+                width={yAxisWidth}
+                tickLine={false}
+                axisLine={false}
+                tick={(props) => {
+                  const { x, y, payload } = props;
+                  const text = payload.value;
+
+                  const isPatriaUnidos = text === "PATRIA-UNIDOS";
+
+                  return (
+                    <g transform={`translate(${x},${y})`}>
+                      <text
+                        x={-5}
+                        y={0}
+                        textAnchor="end"
+                        dominantBaseline="middle"
+                        fill="#94a3b8"
+                        fontSize="11"
+                      >
+                        {isPatriaUnidos ? (
+                          <>
+                            <tspan x={-5} dy="-6">
+                              PATRIA
+                            </tspan>
+                            <tspan x={-5} dy="12">
+                              UNIDOS
+                            </tspan>
+                          </>
+                        ) : (
+                          text
+                        )}
+                      </text>
+                    </g>
+                  );
+                }}
+              />
             ) : (
+              // <YAxis dataKey="codigo" type="category" width={60} />
               // 🔹 Vista Recintos
               <YAxis
                 dataKey="codigo"
