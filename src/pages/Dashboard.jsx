@@ -254,7 +254,8 @@ export default function Dashboard() {
                         textAnchor="end"
                         dominantBaseline="middle"
                         fill="#94a3b8"
-                        fontSize="11"
+                        fontSize={isPatriaUnidos ? 10 : 12}
+                        fontWeight="500"
                       >
                         {isPatriaUnidos ? (
                           <>
