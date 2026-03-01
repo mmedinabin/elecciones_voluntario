@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../services/supabase";
 import { DISTRITOS } from "../constants/distritos";
 import { useRef } from "react";
+import imageCompression from "browser-image-compression";
 
 export default function Upload() {
   const [user, setUser] = useState(null);
@@ -21,6 +22,7 @@ export default function Upload() {
   const [message, setMessage] = useState("");
 
   const [actas, setActas] = useState([]);
+  //const [actas, setActas] = useState([]);
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
 
@@ -50,6 +52,24 @@ export default function Upload() {
 
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  //LOGIN
+  useEffect(() => {
+    async function devLogin() {
+      const { data: sessionData } = await supabase.auth.getSession();
+
+      if (sessionData.session) return;
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: "test@dev.com",
+        password: "12345678",
+      });
+
+      console.log(data, error);
+    }
+
+    devLogin();
   }, []);
 
   async function loadInitial() {
@@ -98,52 +118,109 @@ export default function Upload() {
       setLoading(true);
       setMessage("");
 
-      if (file.size > 5 * 1024 * 1024) {
-        setMessage("La imagen no puede superar 5MB.");
-        setLoading(false);
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData.user;
+
+      if (!user) {
+        setMessage("Usuario no autenticado.");
         return;
       }
 
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${selectedMesa}-${Date.now()}.${fileExt}`;
-      const filePath = `mesa-${selectedMesa}/${fileName}`;
+      // 🔹 Comprimir a WebP
+      const optimizedFile = await compressToWebP(file);
 
+      // 🔹 Nombre único
+      const fileName = `mesa-${selectedMesa}-${Date.now()}.webp`;
+      const filePath = `${user.id}/${fileName}`;
+
+      // 🔹 Subir a Storage
       const { error: uploadError } = await supabase.storage
         .from("actas")
-        .upload(filePath, file);
+        .upload(filePath, optimizedFile, {
+          contentType: "image/webp",
+        });
 
       if (uploadError) throw uploadError;
 
-      const { data: publicUrlData } = supabase.storage
-        .from("actas")
-        .getPublicUrl(filePath);
-
-      const publicUrl = publicUrlData.publicUrl;
-
-      const { error: dbError } = await supabase.from("fotos_mesa").insert({
+      // 🔹 Insertar solo el path
+      const { error: insertError } = await supabase.from("fotos_mesa").insert({
         mesa_id: parseInt(selectedMesa),
         usuario_id: user.id,
         origen: "voluntario",
-        url: publicUrl,
+        url: filePath,
       });
 
-      if (dbError) throw dbError;
+      if (insertError) throw insertError;
 
       setMessage("Acta subida correctamente.");
       setFile(null);
       setSelectedMesa("");
-      loadActas(user.id);
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error("Error upload:", error);
       setMessage("Error al subir acta.");
     } finally {
       setLoading(false);
     }
   }
-
   function getDistritoNombre(distritoId) {
     const distrito = DISTRITOS.find((d) => d.id === distritoId);
     return distrito ? distrito.nombre : "";
+  }
+
+  async function compressToWebP(file) {
+    const options = {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1600,
+      useWebWorker: true,
+      fileType: "image/webp",
+      initialQuality: 0.7,
+    };
+
+    try {
+      const compressedFile = await imageCompression(file, options);
+      return compressedFile;
+    } catch (error) {
+      console.error("Error comprimiendo:", error);
+      return file;
+    }
+  }
+
+  async function loadActas() {
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+
+    const { data, error } = await supabase
+      .from("fotos_mesa")
+      .select("id, mesa_id, url, created_at")
+      .eq("usuario_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (!error) setActas(data);
+  }
+
+  async function handleDownload(filePath) {
+    const { data, error } = await supabase.storage
+      .from("actas")
+      .createSignedUrl(filePath, 60);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    const response = await fetch(data.signedUrl);
+    const blob = await response.blob();
+
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filePath.split("/").pop();
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    window.URL.revokeObjectURL(url);
   }
 
   return (
@@ -355,7 +432,42 @@ export default function Upload() {
         <p className="text-sm text-center text-gray-300">{message}</p>
       )}
 
-      {/* 📂 Actas Subidas */}
+      {/* 📂 Actas Subidas Solo mesa propia*/}
+      {/* <div className="pt-6">
+        {actas.length === 0 ? (
+          <div className="text-gray-500 text-sm">
+            Aún no subiste ninguna acta.
+          </div>
+        ) : (
+          <>
+            <h3 className="text-lg font-semibold text-gray mb-3">
+              Actas Subidas (Mesa {actas[0].mesa_id})
+            </h3>
+
+            {actas.map((acta, index) => (
+              <div
+                key={acta.id}
+                className="flex justify-between items-center 
+                     bg-[#1f1f1f] p-3 rounded-xl mb-3 
+                     border border-[#2c2c2c]"
+              >
+                <div className="text-sm text-gray-300">
+                  #{index + 1} - Foto {index + 1}
+                </div>
+
+                <button
+                  onClick={() => handleDownload(acta.url)}
+                  className="text-[#facc15] text-sm font-medium"
+                >
+                  Descargar
+                </button>
+              </div>
+            ))}
+          </>
+        )}
+      </div> */}
+
+      {/* 📂 Actas Subidas prueba Dev*/}
       <div className="pt-6">
         <h3 className="text-lg font-semibold text-white mb-3">Actas Subidas</h3>
 
@@ -364,20 +476,23 @@ export default function Upload() {
             Aún no subiste ninguna acta.
           </div>
         ) : (
-          actas.map((acta) => (
+          actas.map((acta, index) => (
             <div
               key={acta.id}
-              className="bg-[#1f1f1f] p-3 rounded-xl mb-3 border border-[#2c2c2c]"
+              className="flex justify-between items-center 
+                   bg-[#1f1f1f] p-3 rounded-xl mb-3 
+                   border border-[#2c2c2c]"
             >
-              <div className="flex justify-between text-sm text-gray-300">
-                <span>Mesa {acta.mesa_id}</span>
-                <span>{new Date(acta.created_at).toLocaleString()}</span>
+              <div className="text-sm text-gray-300">
+                #{index + 1} — Mesa {acta.mesa_id}
               </div>
-              <img
-                src={acta.url}
-                alt="Acta"
-                className="w-full mt-2 max-h-48 object-contain rounded-lg"
-              />
+
+              <button
+                onClick={() => handleDownload(acta.url)}
+                className="text-[#facc15] text-sm font-medium"
+              >
+                Descargar
+              </button>
             </div>
           ))
         )}
