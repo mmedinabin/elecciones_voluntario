@@ -147,7 +147,7 @@ export default function Upload() {
   }
 
   return (
-    <div className="p-4 pb-28 space-y-6">
+    <div className="p-4 pb-40 space-y-6">
       <h2 className="text-xl font-bold text-gray">Subir Acta</h2>
 
       {/* 🔎 Recinto con buscador */}
@@ -235,56 +235,72 @@ export default function Upload() {
       )}
 
       {/* 📷 Imagen */}
-      <div>
-        <label className="text-sm text-gray-400">Imagen del Acta</label>
 
-        <label className="cursor-pointer block mt-1 p-3 rounded-xl bg-black text-gray-400 border border-gray-600 hover:border-[#facc15] transition text-center">
-          {file ? "Imagen seleccionada" : "Seleccionar o tomar foto"}
-          {/* <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={(e) => setFile(e.target.files[0])}
-            className="hidden"
-          /> */}
+      <div className="bg-black border border-[#facc15] rounded-2xl p-4">
+        <div className="text-sm text-gray-400 mb-4 text-center">
+          Seleccionar imagen
+        </div>
 
-          {/* Input Cámara */}
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={(e) => setFile(e.target.files[0])}
-            className="hidden"
-          />
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={(e) => {
+            const selectedFile = e.target.files[0];
+            if (selectedFile) {
+              setFile(selectedFile);
+              e.target.value = null;
+            }
+          }}
+          className="hidden"
+        />
 
-          {/* Input Galería */}
-          <input
-            ref={galleryInputRef}
-            type="file"
-            accept="image/*"
-            onChange={(e) => setFile(e.target.files[0])}
-            className="hidden"
-          />
+        <input
+          ref={galleryInputRef}
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const selectedFile = e.target.files[0];
+            if (selectedFile) {
+              setFile(selectedFile);
+              e.target.value = null;
+            }
+          }}
+          className="hidden"
+        />
 
-          <div className="flex gap-2">
+        <div className="flex justify-center gap-8">
+          {/* Cámara */}
+          <div className="flex flex-col items-center">
             <button
               type="button"
               onClick={() => cameraInputRef.current.click()}
-              className="flex-1 p-3 bg-[#1f2937] text-white rounded-xl active:scale-95 transition"
+              className="w-16 h-16 rounded-full bg-[#1f2937] 
+                   flex items-center justify-center 
+                   text-2xl text-white
+                   active:scale-95 transition"
             >
-              📷 Cámara
+              📷
             </button>
+            {/* <span className="text-xs text-gray-400 mt-2">Cámara</span> */}
+          </div>
 
+          {/* Galería */}
+          <div className="flex flex-col items-center">
             <button
               type="button"
               onClick={() => galleryInputRef.current.click()}
-              className="flex-1 p-3 bg-[#1f2937] text-white rounded-xl active:scale-95 transition"
+              className="w-16 h-16 rounded-full bg-[#1f2937] 
+                   flex items-center justify-center 
+                   text-2xl text-white
+                   active:scale-95 transition"
             >
-              🖼 Galería
+              🖼
             </button>
+            {/* <span className="text-xs text-gray-400 mt-2">Galería</span> */}
           </div>
-        </label>
+        </div>
       </div>
 
       {/* Preview controlado */}
@@ -293,7 +309,8 @@ export default function Upload() {
           <img
             src={URL.createObjectURL(file)}
             alt="Preview"
-            className="w-full max-h-64 object-contain rounded-xl border border-gray-700"
+            className="w-full max-h-52 object-contain rounded-xl border border-gray-700"
+            // className="w-full max-h-64 object-contain rounded-xl border border-gray-700"
           />
 
           <div className="text-center text-sm text-gray-400">{file.name}</div>
@@ -308,13 +325,25 @@ export default function Upload() {
       )}
 
       {/* Botón subir */}
-      <button
-        onClick={handleUpload}
-        disabled={!selectedMesa || !file || loading}
-        className="w-full p-4 bg-[#facc15] text-black font-bold rounded-2xl active:scale-95 transition disabled:opacity-50"
+      <div
+        className={`fixed bottom-20 left-0 right-0 px-4 transition-all duration-300
+  ${
+    file && selectedMesa
+      ? "opacity-100 translate-y-0"
+      : "opacity-0 translate-y-10 pointer-events-none"
+  }`}
       >
-        {loading ? "Subiendo..." : "Subir Acta"}
-      </button>
+        <button
+          onClick={handleUpload}
+          disabled={loading}
+          className="w-full p-4 bg-[#facc15] text-black font-bold 
+               rounded-2xl shadow-xl
+               active:scale-95 transition
+               disabled:opacity-50"
+        >
+          {loading ? "Subiendo..." : "Subir Acta"}
+        </button>
+      </div>
 
       {loading && (
         <div className="flex justify-center">
