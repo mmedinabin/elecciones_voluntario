@@ -28,13 +28,13 @@ export default function BottomTabs() {
         </NavLink>
 
         <NavLink
-          to="/distritos"
+          to="/padron"
           className={({ isActive }) =>
             `flex flex-col items-center justify-center text-xs font-medium transition
              ${isActive ? "text-[#facc15]" : "text-gray-400"}`
           }
         >
-          <span className="text-xl">🏠</span>
+          <span className="text-xl">📊</span>
           Padron
         </NavLink>
       </div>

@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
   LabelList,
 } from "recharts";
+import { Cell } from "recharts";
 
 export default function Dashboard() {
   const [data, setData] = useState([]);
@@ -108,6 +109,23 @@ export default function Dashboard() {
 
   const yAxisWidth = Math.min(160, Math.max(60, maxLabelLength * 8));
 
+  const coloresPartidos = {
+    ASIP: "#29d1c3",
+    NGP: "#4c7eeb",
+    SPT: "#4bce51",
+    FE: "#19a743",
+    UN: "#fce410",
+    "PATRIA-UNIDOS": "#fc7c13",
+    TODOS: "#61e226",
+    VOS: "#f5327d",
+    SOL: "#c5510d",
+    UNIDOS: "#2496f3",
+    PSC: "#b6cac9",
+    MTS: "#306938",
+    "A-UPP": "#cfa242",
+    PDC: "#ac2a21",
+  };
+
   return (
     <div className="p-4 space-y-6">
       <div className="bg-[#252525] p-6 rounded-3xl shadow-2xl border border-[#1f2937]">
@@ -123,19 +141,7 @@ export default function Dashboard() {
             </h2>
           </div>
 
-          {/* <div className="flex justify-between items-center">
-            <h2 className="font-bold text-xl text-white tracking-wide uppercase">
-              {selectedDistrict
-                ? `Resultados ${distritoActual?.nombre || ""}`
-                : "TOTAL CONTEO RAPIDO"}
-            </h2>
-
-            <div className="text-sm text-gray-300">Por distrito</div>
-          </div> */}
-
-          {/* FILA 2 */}
           <div className="flex justify-between items-center">
-            {/* ACTAS */}
             {avance && (
               <div className="text-left">
                 <div className="text-xs uppercase tracking-widest text-gray-400">
@@ -149,7 +155,6 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* BOTÓN SELECTOR */}
             <div className="flex flex-col items-center">
               <div className="text-xs text-gray-400 mb-1">Por distrito</div>
 
@@ -165,7 +170,6 @@ export default function Dashboard() {
               </button>
             </div>
 
-            {/* Dropdown */}
             {showSelector && (
               <div className="absolute top-full -mt-2 right-0 w-72 bg-[#111827] border border-[#1f2937] rounded-2xl shadow-2xl p-4 z-50 animate-fadeIn">
                 {!selectedDistrict ? (
@@ -198,7 +202,6 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* FILA 3 */}
           <div className="text-sm text-gray-300">
             <span className="uppercase tracking-widest text-gray-400">
               {selectedDistrict
@@ -275,8 +278,6 @@ export default function Dashboard() {
                 }}
               />
             ) : (
-              // <YAxis dataKey="codigo" type="category" width={60} />
-              // 🔹 Vista Recintos
               <YAxis
                 dataKey="codigo"
                 type="category"
@@ -307,7 +308,6 @@ export default function Dashboard() {
               />
             )}
 
-            {/* <Tooltip /> */}
             <Tooltip
               contentStyle={{
                 backgroundColor: "#1f2937",
@@ -321,7 +321,6 @@ export default function Dashboard() {
 
             <Bar
               dataKey="porcentaje"
-              fill="#eab308"
               radius={[0, 8, 8, 0]}
               barSize={30}
               label={(props) => {
@@ -332,9 +331,7 @@ export default function Dashboard() {
 
                 const text = `${value.toFixed(2)}% (${row.total_votos.toLocaleString()})`;
 
-                // estimación aproximada: 7px por caracter
                 const estimatedTextWidth = text.length * 7;
-
                 const fitsInside = width > estimatedTextWidth + 20;
 
                 return (
@@ -352,7 +349,14 @@ export default function Dashboard() {
                   </text>
                 );
               }}
-            />
+            >
+              {formattedData.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={coloresPartidos[entry.codigo] || "#eab308"}
+                />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
