@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../services/supabase";
 import { DISTRITOS } from "../constants/distritos";
+import { useRef } from "react";
 
 export default function Upload() {
   const [user, setUser] = useState(null);
@@ -20,6 +21,7 @@ export default function Upload() {
   const [message, setMessage] = useState("");
 
   const [actas, setActas] = useState([]);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     loadInitial();
@@ -237,13 +239,40 @@ export default function Upload() {
 
         <label className="cursor-pointer block mt-1 p-3 rounded-xl bg-black text-gray-400 border border-gray-600 hover:border-[#facc15] transition text-center">
           {file ? "Imagen seleccionada" : "Seleccionar o tomar foto"}
+          {/* <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={(e) => setFile(e.target.files[0])}
+            className="hidden"
+          /> */}
+
           <input
+            ref={fileInputRef}
             type="file"
             accept="image/*"
             capture="environment"
             onChange={(e) => setFile(e.target.files[0])}
             className="hidden"
           />
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current.click()}
+              className="flex-1 p-3 bg-[#1f2937] text-white rounded-xl"
+            >
+              📷 Cámara
+            </button>
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current.click()}
+              className="flex-1 p-3 bg-[#1f2937] text-white rounded-xl"
+            >
+              🖼 Galería
+            </button>
+          </div>
         </label>
       </div>
 

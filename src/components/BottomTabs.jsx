@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { CloudUpload } from "lucide-react";
+import { useRef } from "react";
 
 export default function BottomTabs() {
   return (
