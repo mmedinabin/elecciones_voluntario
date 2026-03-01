@@ -21,7 +21,8 @@ export default function Upload() {
   const [message, setMessage] = useState("");
 
   const [actas, setActas] = useState([]);
-  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
 
   useEffect(() => {
     loadInitial();
@@ -247,8 +248,9 @@ export default function Upload() {
             className="hidden"
           /> */}
 
+          {/* Input Cámara */}
           <input
-            ref={fileInputRef}
+            ref={cameraInputRef}
             type="file"
             accept="image/*"
             capture="environment"
@@ -256,19 +258,28 @@ export default function Upload() {
             className="hidden"
           />
 
+          {/* Input Galería */}
+          <input
+            ref={galleryInputRef}
+            type="file"
+            accept="image/*"
+            onChange={(e) => setFile(e.target.files[0])}
+            className="hidden"
+          />
+
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => fileInputRef.current.click()}
-              className="flex-1 p-3 bg-[#1f2937] text-white rounded-xl"
+              onClick={() => cameraInputRef.current.click()}
+              className="flex-1 p-3 bg-[#1f2937] text-white rounded-xl active:scale-95 transition"
             >
               📷 Cámara
             </button>
 
             <button
               type="button"
-              onClick={() => fileInputRef.current.click()}
-              className="flex-1 p-3 bg-[#1f2937] text-white rounded-xl"
+              onClick={() => galleryInputRef.current.click()}
+              className="flex-1 p-3 bg-[#1f2937] text-white rounded-xl active:scale-95 transition"
             >
               🖼 Galería
             </button>
