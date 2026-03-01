@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "../services/supabase";
 import {
   BarChart,
@@ -7,20 +7,21 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  LabelList,
 } from "recharts";
 import { Cell } from "recharts";
+import { DISTRITOS } from "../constants/distritos";
 
 export default function Dashboard() {
   const [data, setData] = useState([]);
-  const [districts, setDistricts] = useState([]);
+  //const [districts, setDistricts] = useState([]);
   const [selectedDistrict, setSelectedDistrict] = useState(null);
 
   const [showSelector, setShowSelector] = useState(false);
   const [avance, setAvance] = useState(null);
+  const [districts] = useState(DISTRITOS);
 
   useEffect(() => {
-    loadDistricts();
+    loadInitialData();
   }, []);
 
   async function loadAvance(distritoId = null) {
@@ -34,24 +35,19 @@ export default function Dashboard() {
     }
   }
 
-  async function loadDistricts() {
-    const { data, error } = await supabase.from("distritos").select("*");
-    if (!error) {
-      setDistricts(data);
-      loadResultadosTotal(); // 🔥 carga total al iniciar
-    }
+  async function loadInitialData() {
+    const [ totalRes, avanceRes] = await Promise.all([
+      supabase.rpc("estadistica_partidos_total"),
+      supabase.rpc("avance_computo", {
+        distrito_id_param: null,
+        recinto_id_param: null,
+      }),
+    ]);
+    if (!totalRes.error) setData(totalRes.data);
+    if (!avanceRes.error && avanceRes.data?.length > 0)
+      setAvance(avanceRes.data[0]);
   }
-
-  async function loadResultadosTotal() {
-    const { data, error } = await supabase.rpc("estadistica_partidos_total");
-
-    if (!error) {
-      setData(data);
-      setSelectedDistrict(null);
-      loadAvance(null); // 🔥 GENERAL
-    }
-  }
-
+  
   async function loadResultadosDistrito(districtId) {
     const { data, error } = await supabase.rpc(
       "estadistica_partidos_distrito",
@@ -67,35 +63,21 @@ export default function Dashboard() {
     }
   }
 
-  // async function loadRecintos(districtId) {
-  //   const { data, error } = await supabase.rpc("estadistica_recintos", {
-  //     distrito_id: parseInt(districtId),
-  //   });
-  //   if (!error) {
-  //     setData(data);
-  //     setSelectedDistrict(districtId);
-  //   }
-  // }
+  const formattedData = useMemo(() => {
+    return data.map((item) => ({
+      partido_id: item.partido_id,
+      codigo: item.codigo,
+      porcentaje: Number(item.porcentaje),
+      total_votos: Number(item.total_votos),
+    }));
+  }, [data]);
 
-  const formattedData = data.map((item) => ({
-    partido_id: item.partido_id,
-    codigo: item.codigo,
-    porcentaje: Number(item.porcentaje),
-    total_votos: Number(item.total_votos),
-  }));
-
-  const totalGeneral = formattedData.reduce(
-    (acc, item) => acc + item.total_votos,
-    0,
-  );
+  const totalEmitido = useMemo(() => {
+    return formattedData.reduce((acc, item) => acc + item.total_votos, 0);
+  }, [formattedData]);
 
   const distritoActual = districts.find(
     (d) => d.id === Number(selectedDistrict),
-  );
-
-  const totalDistrito = formattedData.reduce(
-    (acc, item) => acc + item.total_votos,
-    0,
   );
 
   const adjustedLengths = formattedData.map((item) => {
@@ -209,9 +191,7 @@ export default function Dashboard() {
                 : "Total Votos Emitidos"}
             </span>
             <span className="ml-2 font-bold text-[#facc15] text-lg">
-              {selectedDistrict
-                ? totalDistrito.toLocaleString()
-                : totalGeneral.toLocaleString()}
+              {totalEmitido.toLocaleString()}
             </span>
           </div>
         </div>

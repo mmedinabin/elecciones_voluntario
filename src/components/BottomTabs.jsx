@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { CloudUpload } from "lucide-react";
 
 export default function BottomTabs() {
   return (
@@ -15,8 +16,38 @@ export default function BottomTabs() {
           Resultados
         </NavLink>
 
-        {/* Botón central destacado */}
         <NavLink
+          to="/upload"
+          className={({ isActive }) =>
+            `absolute -top-7 flex flex-col items-center transition ${
+              isActive ? "text-[#facc15]" : "text-gray-400"
+            }`
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <div
+                className={`w-16 h-16 rounded-full flex items-center justify-center shadow-xl transition active:scale-95 ${
+                  isActive
+                    ? "bg-[#facc15] text-black"
+                    : "bg-[#1f2937] text-gray-400"
+                }`}
+              >
+                <CloudUpload size={28} strokeWidth={2.5} />
+              </div>
+
+              <span
+                className={`text-xs mt-1 font-medium transition ${
+                  isActive ? "text-[#facc15]" : "text-gray-400"
+                }`}
+              >
+                Acta
+              </span>
+            </>
+          )}
+        </NavLink>
+
+        {/* <NavLink
           to="/upload"
           className="absolute -top-5 bg-[#facc15] text-black 
                      w-16 h-16 rounded-full 
@@ -25,7 +56,7 @@ export default function BottomTabs() {
                      transition active:scale-95"
         >
           📷
-        </NavLink>
+        </NavLink> */}
 
         <NavLink
           to="/padron"
