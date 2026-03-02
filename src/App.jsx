@@ -1,7 +1,13 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import BottomTabs from "./components/BottomTabs";
+import ProtectedRoute from "./components/ProtectedRoute";
+
+import Login from "./pages/Login";
+import OnboardingGate from "./pages/OnboardingGate";
+import RegistroVoluntario from "./pages/RegistroVoluntario";
 
 import Dashboard from "./pages/Dashboard";
 import DashboardPadron from "./pages/DashboardPadron";
@@ -11,46 +17,125 @@ import Upload from "./pages/Upload";
 import Digitacion from "./pages/Digitacion";
 import DigitacionDistrito from "./pages/DigitacionDistrito";
 import DigitacionRecinto from "./pages/DigitacionRecinto";
+import AuthCallback from "./pages/AuthCallback";
+
+function PrivateLayout({ children }) {
+  return (
+    <div className="flex flex-col h-screen bg-gray-50 md:flex-row">
+      <div className="hidden md:flex">
+        <Sidebar />
+      </div>
+
+      <div className="flex flex-col flex-1">
+        <Header />
+
+        <div className="flex-1 overflow-y-auto pb-20 md:pb-0">{children}</div>
+
+        <div className="md:hidden">
+          <BottomTabs />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="flex flex-col h-screen bg-gray-50 md:flex-row">
-        {/* Sidebar Desktop */}
-        <div className="hidden md:flex">
-          <Sidebar />
-        </div>
+      <Routes>
+        {/* 🔓 PUBLIC */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/onboarding" element={<OnboardingGate />} />
+        <Route path="/registro" element={<RegistroVoluntario />} />
 
-        {/* Main Content */}
-        <div className="flex flex-col flex-1">
-          <Header />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "digitador", "voluntario"]}>
+              <PrivateLayout>
+                <Dashboard />
+              </PrivateLayout>
+            </ProtectedRoute>
+          }
+        />
 
-          <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/padron" element={<DashboardPadron />} />
-              <Route path="/distritos" element={<Distritos />} />
-              <Route path="/upload" element={<Upload />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "digitador", "voluntario"]}>
+              <PrivateLayout>
+                <Dashboard />
+              </PrivateLayout>
+            </ProtectedRoute>
+          }
+        />
 
-              {/* Digitación */}
-              <Route path="/digitacion" element={<Digitacion />} />
-              <Route path="/digitacion/:id" element={<DigitacionDistrito />} />
-              <Route
-                path="/digitacion/recinto/:id"
-                element={<DigitacionRecinto />}
-              />
+        <Route
+          path="/padron"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "digitador", "voluntario"]}>
+              <PrivateLayout>
+                <DashboardPadron />
+              </PrivateLayout>
+            </ProtectedRoute>
+          }
+        />
 
-              {/* Mesa detalle */}
-              <Route path="/mesa/:id" element={<MesaDetalle />} />
-            </Routes>
-          </div>
+        <Route
+          path="/upload"
+          element={
+            <ProtectedRoute allowedRoles={["voluntario", "admin"]}>
+              <PrivateLayout>
+                <Upload />
+              </PrivateLayout>
+            </ProtectedRoute>
+          }
+        />
 
-          {/* Bottom Tabs Mobile */}
-          <div className="md:hidden">
-            <BottomTabs />
-          </div>
-        </div>
-      </div>
+        <Route
+          path="/digitacion"
+          element={
+            <ProtectedRoute allowedRoles={["digitador", "admin"]}>
+              <PrivateLayout>
+                <Digitacion />
+              </PrivateLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/digitacion/:id"
+          element={
+            <ProtectedRoute allowedRoles={["digitador", "admin"]}>
+              <PrivateLayout>
+                <DigitacionDistrito />
+              </PrivateLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/digitacion/recinto/:id"
+          element={
+            <ProtectedRoute allowedRoles={["digitador", "admin"]}>
+              <PrivateLayout>
+                <DigitacionRecinto />
+              </PrivateLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/mesa/:id"
+          element={
+            <ProtectedRoute allowedRoles={["admin", "digitador"]}>
+              <PrivateLayout>
+                <MesaDetalle />
+              </PrivateLayout>
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
     </BrowserRouter>
   );
 }

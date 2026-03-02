@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../services/supabase";
+import { useNavigate } from "react-router-dom";
 import { DISTRITOS } from "../constants/distritos";
 import { useRef } from "react";
 import imageCompression from "browser-image-compression";
 
 export default function Upload() {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [voluntario, setVoluntario] = useState(null);
+  const [modoBloqueado, setModoBloqueado] = useState(false);
 
   const [recintos, setRecintos] = useState([]);
   const [mesas, setMesas] = useState([]);
@@ -22,7 +26,6 @@ export default function Upload() {
   const [message, setMessage] = useState("");
 
   const [actas, setActas] = useState([]);
-  //const [actas, setActas] = useState([]);
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
 
@@ -54,6 +57,15 @@ export default function Upload() {
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (
+      voluntario &&
+      (!voluntario.mesa_id || voluntario.estado_validacion === "pendiente")
+    ) {
+      navigate("/registro");
+    }
+  }, [voluntario]);
+
   //LOGIN
   useEffect(() => {
     async function devLogin() {
@@ -73,18 +85,60 @@ export default function Upload() {
   }, []);
 
   async function loadInitial() {
-    const { data } = await supabase.auth.getUser();
-    if (data?.user) {
-      setUser(data.user);
-      loadActas(data.user.id);
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData?.user;
+    if (!user) return;
+
+    setUser(user);
+
+    const { data: voluntarioData } = await supabase
+      .from("voluntarios")
+      .select("*")
+      .eq("usuario_id", user.id)
+      .single();
+
+    setVoluntario(voluntarioData);
+
+    // 🔐 Si tiene mesa asignada → bloquear
+    if (
+      voluntarioData &&
+      voluntarioData.mesa_id &&
+      (voluntarioData.estado_validacion === "manual" ||
+        voluntarioData.estado_validacion === "validado")
+    ) {
+      setModoBloqueado(true);
+
+      const { data: mesa } = await supabase
+        .from("mesas")
+        .select("id, numero_mesa, recinto_id")
+        .eq("id", voluntarioData.mesa_id)
+        .single();
+
+      const { data: recinto } = await supabase
+        .from("recintos")
+        .select("id, nombre, distrito_id")
+        .eq("id", mesa.recinto_id)
+        .single();
+
+      setSelectedRecinto(recinto.id);
+      setRecintoQuery(recinto.nombre);
+
+      await loadMesas(recinto.id); // 🔥 IMPORTANTE
+
+      setSelectedMesa(mesa);
     }
 
-    const { data: recintosData } = await supabase
-      .from("recintos")
-      .select("id,nombre, distrito_id")
-      .order("nombre");
+    // 🔹 Cargar recintos solo si NO está bloqueado
+    if (!modoBloqueado) {
+      const { data: recintosData } = await supabase
+        .from("recintos")
+        .select("id,nombre,distrito_id")
+        .order("nombre");
 
-    setRecintos(recintosData || []);
+      setRecintos(recintosData || []);
+    }
+
+    loadActas(user.id);
   }
 
   async function loadMesas(recintoId) {
@@ -98,11 +152,23 @@ export default function Upload() {
     setMesas(data || []);
   }
 
-  async function loadActas(userId) {
+  async function loadActas() {
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
+
     const { data } = await supabase
       .from("fotos_mesa")
-      .select("id, mesa_id, url, created_at")
-      .eq("usuario_id", userId)
+      .select(
+        `
+      id,
+      url,
+      created_at,
+      mesas (
+        numero_mesa
+      )
+    `,
+      )
+      .eq("usuario_id", user.id)
       .order("created_at", { ascending: false });
 
     setActas(data || []);
@@ -130,7 +196,7 @@ export default function Upload() {
       const optimizedFile = await compressToWebP(file);
 
       // 🔹 Nombre único
-      const fileName = `mesa-${selectedMesa}-${Date.now()}.webp`;
+      const fileName = `mesa-${selectedMesa.numero_mesa}-${Date.now()}.webp`;
       const filePath = `${user.id}/${fileName}`;
 
       // 🔹 Subir a Storage
@@ -143,14 +209,18 @@ export default function Upload() {
       if (uploadError) throw uploadError;
 
       // 🔹 Insertar solo el path
+      const mesaFinal = modoBloqueado ? voluntario.mesa_id : selectedMesa.id;
+
       const { error: insertError } = await supabase.from("fotos_mesa").insert({
-        mesa_id: parseInt(selectedMesa),
+        mesa_id: mesaFinal,
         usuario_id: user.id,
         origen: "voluntario",
         url: filePath,
       });
 
       if (insertError) throw insertError;
+
+      await loadActas();
 
       setMessage("Acta subida correctamente.");
       setFile(null);
@@ -191,9 +261,18 @@ export default function Upload() {
 
     const { data, error } = await supabase
       .from("fotos_mesa")
-      .select("id, mesa_id, url, created_at")
+      .select(
+        `
+    id,
+    url,
+    created_at,
+    mesas (
+      numero_mesa
+    )
+  `,
+      )
       .eq("usuario_id", user.id)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: true });
 
     if (!error) setActas(data);
   }
@@ -233,6 +312,7 @@ export default function Upload() {
 
         <div className="relative mt-1">
           <input
+            disabled={modoBloqueado}
             type="text"
             placeholder="Buscar recinto..."
             value={recintoQuery}
@@ -247,7 +327,7 @@ export default function Upload() {
           />
 
           {/* Botón limpiar */}
-          {selectedRecinto && (
+          {selectedRecinto && !modoBloqueado && (
             <button
               onClick={() => {
                 setSelectedRecinto("");
@@ -293,22 +373,27 @@ export default function Upload() {
       </div>
 
       {/* 🗳 Mesa */}
-      {selectedRecinto && (
-        <div>
-          <label className="text-sm text-gray-400">Mesa</label>
-          <select
-            value={selectedMesa}
-            onChange={(e) => setSelectedMesa(e.target.value)}
-            className="appearance-none w-full mt-1 p-3 rounded-xl bg-black text-white border border-gray-600"
-          >
-            <option value="">Seleccionar mesa...</option>
-            {mesas.map((m) => (
-              <option key={m.id} value={m.id}>
-                Mesa {m.numero_mesa}
-              </option>
-            ))}
-          </select>
+
+      {modoBloqueado ? (
+        <div className="mt-1 p-3 rounded-xl bg-black border border-gray-600 text-white">
+          Mesa {selectedMesa?.numero_mesa}
         </div>
+      ) : (
+        <select
+          value={selectedMesa?.id || ""}
+          onChange={(e) => {
+            const mesa = mesas.find((m) => m.id === parseInt(e.target.value));
+            setSelectedMesa(mesa);
+          }}
+          className="appearance-none w-full mt-1 p-3 rounded-xl bg-black text-white border border-gray-600"
+        >
+          <option value="">Seleccionar mesa...</option>
+          {mesas.map((m) => (
+            <option key={m.id} value={m.id}>
+              Mesa {m.numero_mesa}
+            </option>
+          ))}
+        </select>
       )}
 
       {/* 📷 Imagen */}
@@ -469,7 +554,7 @@ export default function Upload() {
 
       {/* 📂 Actas Subidas prueba Dev*/}
       <div className="pt-6">
-        <h3 className="text-lg font-semibold text-white mb-3">Actas Subidas</h3>
+        <h3 className="text-lg font-semibold text-gray mb-3">Actas Subidas</h3>
 
         {actas.length === 0 ? (
           <div className="text-gray-500 text-sm">
@@ -484,7 +569,7 @@ export default function Upload() {
                    border border-[#2c2c2c]"
             >
               <div className="text-sm text-gray-300">
-                #{index + 1} — Mesa {acta.mesa_id}
+                #{index + 1} — Mesa {acta.mesas.numero_mesa}
               </div>
 
               <button

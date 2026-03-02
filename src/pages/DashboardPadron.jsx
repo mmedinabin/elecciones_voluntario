@@ -64,12 +64,12 @@ export default function DashboardPadron() {
         <div className="relative flex items-center justify-between">
           <h2 className="font-bold text-xl text-white tracking-wide uppercase">
             {selectedDistrict
-              ? `Distribución ${distritoActual?.nombre || ""}`
-              : "Distribución por Distrito"}
+              ? `Padron ${distritoActual?.nombre || ""}`
+              : "Padron Municipio SC"}
           </h2>
 
           {/* Botón flecha */}
-          <button
+          {/* <button
             onClick={() => setShowSelector(!showSelector)}
             className="text-[#facc15] text-xl transition-transform duration-300 hover:scale-110"
           >
@@ -78,7 +78,29 @@ export default function DashboardPadron() {
             >
               ▼
             </span>
-          </button>
+          </button> */}
+
+
+
+            <div className="flex flex-col items-center">
+              <div className="text-xs text-gray-400 mb-1">Por distrito</div>
+
+              <button
+                onClick={() => setShowSelector(!showSelector)}
+                className="text-[#facc15] text-xl transition-transform duration-300 hover:scale-110"
+              >
+                <span
+                  className={`${showSelector ? "rotate-180" : ""} inline-block transition-transform duration-300`}
+                >
+                  ▼
+                </span>
+              </button>
+            </div>
+
+
+
+
+
 
           {/* Dropdown */}
           {showSelector && (

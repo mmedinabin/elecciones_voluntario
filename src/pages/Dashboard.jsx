@@ -7,22 +7,29 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
-import { Cell } from "recharts";
 import { DISTRITOS } from "../constants/distritos";
 
 export default function Dashboard() {
   const [data, setData] = useState([]);
-  //const [districts, setDistricts] = useState([]);
   const [selectedDistrict, setSelectedDistrict] = useState(null);
 
   const [showSelector, setShowSelector] = useState(false);
   const [avance, setAvance] = useState(null);
   const [districts] = useState(DISTRITOS);
+  const [chartType, setChartType] = useState("bar");
+  const [activePieIndex, setActivePieIndex] = useState(null);
 
   useEffect(() => {
-    loadInitialData();
-  }, []);
+    if (selectedDistrict) {
+      loadResultadosDistrito(selectedDistrict);
+    } else {
+      loadInitialData();
+    }
+  }, [selectedDistrict]);
 
   async function loadAvance(distritoId = null) {
     const { data, error } = await supabase.rpc("avance_computo", {
@@ -36,7 +43,7 @@ export default function Dashboard() {
   }
 
   async function loadInitialData() {
-    const [ totalRes, avanceRes] = await Promise.all([
+    const [totalRes, avanceRes] = await Promise.all([
       supabase.rpc("estadistica_partidos_total"),
       supabase.rpc("avance_computo", {
         distrito_id_param: null,
@@ -47,16 +54,15 @@ export default function Dashboard() {
     if (!avanceRes.error && avanceRes.data?.length > 0)
       setAvance(avanceRes.data[0]);
   }
-  
+
   async function loadResultadosDistrito(districtId) {
     const { data, error } = await supabase.rpc(
       "estadistica_partidos_distrito",
       { distrito_id_param: parseInt(districtId) },
     );
-    console.log(data);
+
     if (!error) {
       setData(data);
-      setSelectedDistrict(districtId);
       loadAvance(parseInt(districtId));
     } else {
       console.error(error);
@@ -113,14 +119,37 @@ export default function Dashboard() {
       <div className="bg-[#252525] p-6 rounded-3xl shadow-2xl border border-[#1f2937]">
         <div className="mb-4 space-y-2 relative">
           {/* FILA 1 */}
-
-          {/* FILA 1 */}
           <div className="flex justify-between items-center">
             <h2 className="font-bold text-xl text-white tracking-wide uppercase">
               {selectedDistrict
                 ? `Resultados ${distritoActual?.nombre || ""}`
                 : "TOTAL CONTEO RAPIDO"}
             </h2>
+
+            {/* SOLO DESKTOP */}
+            <div className="hidden md:flex gap-2">
+              <button
+                onClick={() => setChartType("bar")}
+                className={`px-3 py-1 rounded-xl text-sm ${
+                  chartType === "bar"
+                    ? "bg-[#facc15] text-black"
+                    : "bg-black text-white border border-gray-600"
+                }`}
+              >
+                Barras
+              </button>
+
+              <button
+                onClick={() => setChartType("pie")}
+                className={`px-3 py-1 rounded-xl text-sm ${
+                  chartType === "pie"
+                    ? "bg-[#facc15] text-black"
+                    : "bg-black text-white border border-gray-600"
+                }`}
+              >
+                Circular
+              </button>
+            </div>
           </div>
 
           <div className="flex justify-between items-center">
@@ -157,8 +186,10 @@ export default function Dashboard() {
                 {!selectedDistrict ? (
                   <select
                     onChange={(e) => {
-                      loadResultadosDistrito(e.target.value);
+                      setSelectedDistrict(e.target.value);
                       setShowSelector(false);
+                      // loadResultadosDistrito(e.target.value);
+                      // setShowSelector(false);
                     }}
                     className="w-full p-3 rounded-xl bg-black text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-[#facc15]"
                   >
@@ -172,7 +203,7 @@ export default function Dashboard() {
                 ) : (
                   <button
                     onClick={() => {
-                      loadDistricts();
+                      setSelectedDistrict(null);
                       setShowSelector(false);
                     }}
                     className="w-full p-3 bg-[#facc15] text-black font-semibold rounded-xl hover:opacity-90 transition"
@@ -196,149 +227,205 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <ResponsiveContainer
-          width="100%"
-          height={Math.max(400, data.length * 45)}
-        >
-          <BarChart
-            layout="vertical"
-            data={formattedData}
-            margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
+        {chartType === "bar" ? (
+          <ResponsiveContainer
+            width="100%"
+            height={Math.max(400, data.length * 45)}
           >
-            <XAxis
-              type="number"
-              hide
-              domain={[
-                0,
-                (dataMax) => {
-                  return dataMax + dataMax * 0.15; // 15% espacio extra
-                },
-              ]}
-            />
-            {!selectedDistrict ? (
-              // 🔹 Vista Distritos
-              <YAxis
-                dataKey="codigo"
-                type="category"
-                width={yAxisWidth}
-                tickLine={false}
-                axisLine={false}
-                tick={(props) => {
-                  const { x, y, payload } = props;
-                  const text = payload.value;
-
-                  const isPatriaUnidos = text === "PATRIA-UNIDOS";
-
-                  return (
-                    <g transform={`translate(${x},${y})`}>
-                      <text
-                        x={-5}
-                        y={0}
-                        textAnchor="end"
-                        dominantBaseline="middle"
-                        fill="#94a3b8"
-                        fontSize={isPatriaUnidos ? 10 : 12}
-                        fontWeight="500"
-                      >
-                        {isPatriaUnidos ? (
-                          <>
-                            <tspan x={-5} dy="-6">
-                              PATRIA
-                            </tspan>
-                            <tspan x={-5} dy="12">
-                              UNIDOS
-                            </tspan>
-                          </>
-                        ) : (
-                          text
-                        )}
-                      </text>
-                    </g>
-                  );
-                }}
-              />
-            ) : (
-              <YAxis
-                dataKey="codigo"
-                type="category"
-                width={140}
-                tick={(props) => {
-                  const { x, y, payload } = props;
-                  const text = payload.value;
-
-                  const truncated =
-                    text.length > 18 ? text.substring(0, 18) + "…" : text;
-
-                  return (
-                    <g transform={`translate(${x},${y})`}>
-                      <title>{text}</title>
-                      <text
-                        x={-5}
-                        y={0}
-                        dy={4}
-                        textAnchor="end"
-                        fill="#eab308"
-                        fontSize="12"
-                      >
-                        {truncated}
-                      </text>
-                    </g>
-                  );
-                }}
-              />
-            )}
-
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#1f2937",
-                border: "1px solid #facc15",
-                borderRadius: "12px",
-                color: "#fff",
-                boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
-              }}
-              labelStyle={{ color: "#facc15", fontWeight: 600 }}
-            />
-
-            <Bar
-              dataKey="porcentaje"
-              radius={[0, 8, 8, 0]}
-              barSize={30}
-              label={(props) => {
-                const { x, y, width, height, value, index } = props;
-
-                const row = formattedData[index];
-                if (!row) return null;
-
-                const text = `${value.toFixed(2)}% (${row.total_votos.toLocaleString()})`;
-
-                const estimatedTextWidth = text.length * 7;
-                const fitsInside = width > estimatedTextWidth + 20;
-
-                return (
-                  <text
-                    x={fitsInside ? x + width - 10 : x + width + 8}
-                    y={y + height / 2}
-                    textAnchor={fitsInside ? "end" : "start"}
-                    dominantBaseline="middle"
-                    fill={fitsInside ? "#0f0f0f" : "#facc15"}
-                    fontSize="12"
-                    fontWeight="700"
-                    letterSpacing="0.5"
-                  >
-                    {text}
-                  </text>
-                );
-              }}
+            <BarChart
+              layout="vertical"
+              data={formattedData}
+              margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
             >
-              {formattedData.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={coloresPartidos[entry.codigo] || "#eab308"}
+              <XAxis
+                type="number"
+                hide
+                domain={[
+                  0,
+                  (dataMax) => {
+                    return dataMax + dataMax * 0.15; // 15% espacio extra
+                  },
+                ]}
+              />
+              {!selectedDistrict ? (
+                // 🔹 Vista Distritos
+                <YAxis
+                  dataKey="codigo"
+                  type="category"
+                  width={yAxisWidth}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={(props) => {
+                    const { x, y, payload } = props;
+                    const text = payload.value;
+
+                    const isPatriaUnidos = text === "PATRIA-UNIDOS";
+
+                    return (
+                      <g transform={`translate(${x},${y})`}>
+                        <text
+                          x={-5}
+                          y={0}
+                          textAnchor="end"
+                          dominantBaseline="middle"
+                          fill="#94a3b8"
+                          fontSize={isPatriaUnidos ? 10 : 12}
+                          fontWeight="500"
+                        >
+                          {isPatriaUnidos ? (
+                            <>
+                              <tspan x={-5} dy="-6">
+                                PATRIA
+                              </tspan>
+                              <tspan x={-5} dy="12">
+                                UNIDOS
+                              </tspan>
+                            </>
+                          ) : (
+                            text
+                          )}
+                        </text>
+                      </g>
+                    );
+                  }}
                 />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+              ) : (
+                <YAxis
+                  dataKey="codigo"
+                  type="category"
+                  width={140}
+                  tick={(props) => {
+                    const { x, y, payload } = props;
+                    const text = payload.value;
+
+                    const truncated =
+                      text.length > 18 ? text.substring(0, 18) + "…" : text;
+
+                    return (
+                      <g transform={`translate(${x},${y})`}>
+                        <title>{text}</title>
+                        <text
+                          x={-5}
+                          y={0}
+                          dy={4}
+                          textAnchor="end"
+                          fill="#eab308"
+                          fontSize="12"
+                        >
+                          {truncated}
+                        </text>
+                      </g>
+                    );
+                  }}
+                />
+              )}
+              <Tooltip
+                trigger="hover"
+                contentStyle={{
+                  backgroundColor: "#1f2937",
+                  border: "1px solid #facc15",
+                  borderRadius: "12px",
+                  color: "#fff",
+                  boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
+                }}
+                labelStyle={{ color: "#facc15", fontWeight: 600 }}
+                itemStyle={{ color: "#ffffff" }}
+                formatter={(value, name) => {
+                  if (name === "porcentaje") {
+                    return [`${Number(value).toFixed(2)} %`, "Porcentaje"];
+                  }
+
+                  if (name === "total_votos") {
+                    return [Number(value).toLocaleString(), "Total votos"];
+                  }
+
+                  return [value, name];
+                }}
+              />
+
+              <Bar
+                dataKey="porcentaje"
+                radius={[0, 8, 8, 0]}
+                barSize={30}
+                label={(props) => {
+                  const { x, y, width, height, value, index } = props;
+
+                  const row = formattedData[index];
+                  if (!row) return null;
+
+                  const text = `${value.toFixed(2)}% (${row.total_votos.toLocaleString()})`;
+
+                  const estimatedTextWidth = text.length * 7;
+                  const fitsInside = width > estimatedTextWidth + 20;
+
+                  return (
+                    <text
+                      x={fitsInside ? x + width - 10 : x + width + 8}
+                      y={y + height / 2}
+                      textAnchor={fitsInside ? "end" : "start"}
+                      dominantBaseline="middle"
+                      fill={fitsInside ? "#0f0f0f" : "#facc15"}
+                      fontSize="12"
+                      fontWeight="700"
+                      letterSpacing="0.5"
+                    >
+                      {text}
+                    </text>
+                  );
+                }}
+              >
+                {formattedData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={coloresPartidos[entry.codigo] || "#eab308"}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <ResponsiveContainer width="100%" height={500}>
+            <PieChart>
+              <Pie
+                data={formattedData}
+                dataKey="porcentaje"
+                nameKey="codigo"
+                cx="50%"
+                cy="50%"
+                outerRadius={220}
+                activeIndex={activePieIndex}
+                onMouseEnter={(_, index) => setActivePieIndex(index)}
+                onMouseLeave={() => setActivePieIndex(null)}
+                isAnimationActive={false} // 🔥 evita el efecto refresh
+                labelLine={false}
+                label={({ name, value }) => `${name} ${value.toFixed(1)}%`}
+              >
+                {formattedData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={coloresPartidos[entry.codigo] || "#eab308"}
+                  />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#1f2937",
+                  border: "1px solid #facc15",
+                  borderRadius: "12px",
+                  color: "#fff",
+                  boxShadow: "0 10px 25px rgba(0,0,0,0.4)",
+                }}
+                labelStyle={{ display: "none" }} // 🔥 ocultamos label por defecto
+                itemStyle={{ color: "#ffffff" }}
+                formatter={(value, name, props) => {
+                  const codigo = props.payload.codigo;
+
+                  return [`${Number(value).toFixed(2)} %`, codigo];
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   );
