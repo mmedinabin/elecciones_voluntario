@@ -75,7 +75,7 @@ export default function Login() {
           onClick={loginManual}
           className="w-full bg-[#facc15] py-3 rounded-xl font-bold"
         >
-          Ingresar como Digitador
+          Ingresar
         </button>
       </div>
     </div>
